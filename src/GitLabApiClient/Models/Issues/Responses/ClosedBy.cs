@@ -1,6 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using Newtonsoft.Json;
 
 namespace GitLabApiClient.Models.Issues.Responses
@@ -18,9 +15,6 @@ namespace GitLabApiClient.Models.Issues.Responses
 
         [JsonProperty("username")]
         public string Username;
-
-        [JsonProperty("id")]
-        public string Id;
 
         [JsonProperty("name")]
         public string Name;

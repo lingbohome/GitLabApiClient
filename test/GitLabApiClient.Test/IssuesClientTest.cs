@@ -19,13 +19,13 @@ namespace GitLabApiClient.Test
     public class IssuesClientTest
     {
         private readonly IssuesClient _sut = new IssuesClient(
-            GetFacade(), new IssuesQueryBuilder(), new ProjectIssuesQueryBuilder(), new ProjectIssueNotesQueryBuilder());
+            GetFacade(), new IssuesQueryBuilder(), new ProjectIssueNotesQueryBuilder());
 
         [Fact]
         public async Task CreatedIssueCanBeUpdated()
         {
             //arrange
-            var createdIssue = await _sut.CreateAsync(new CreateIssueRequest(TestProjectTextId, "Title1")
+            var createdIssue = await _sut.CreateAsync(TestProjectTextId, new CreateIssueRequest("Title1")
             {
                 Assignees = new List<int> { 1 },
                 Confidential = true,
@@ -33,20 +33,18 @@ namespace GitLabApiClient.Test
                 Labels = new[] { "Label1" },
                 MilestoneId = 2,
                 DiscussionToResolveId = 3,
-                MergeRequestIdToResolveDiscussions = 4,
-                Weight = 3
+                MergeRequestIdToResolveDiscussions = 4
             });
 
             //act
-            var updatedIssue = await _sut.UpdateAsync(new UpdateIssueRequest(TestProjectTextId, createdIssue.Iid)
+            var updatedIssue = await _sut.UpdateAsync(TestProjectTextId, createdIssue.Iid, new UpdateIssueRequest()
             {
                 Assignees = new List<int> { 11 },
                 Confidential = false,
                 Description = "Description11",
                 Labels = new[] { "Label11" },
                 Title = "Title11",
-                MilestoneId = 22,
-                Weight = 33
+                MilestoneId = 22
             });
 
             //assert
@@ -55,18 +53,17 @@ namespace GitLabApiClient.Test
                 i.Confidential == false &&
                 i.Description == "Description11" &&
                 i.Labels.SequenceEqual(new[] { "Label11" }) &&
-                i.Title == "Title11" &&
-                i.Weight == 33);
+                i.Title == "Title11");
         }
 
         [Fact]
         public async Task CreatedIssueCanBeClosed()
         {
             //arrange
-            var createdIssue = await _sut.CreateAsync(new CreateIssueRequest(TestProjectTextId, "Title1"));
+            var createdIssue = await _sut.CreateAsync(TestProjectTextId, new CreateIssueRequest("Title1"));
 
             //act
-            var updatedIssue = await _sut.UpdateAsync(new UpdateIssueRequest(TestProjectTextId, createdIssue.Iid)
+            var updatedIssue = await _sut.UpdateAsync(TestProjectTextId, createdIssue.Iid, new UpdateIssueRequest()
             {
                 State = UpdatedIssueState.Close
             });
@@ -80,10 +77,10 @@ namespace GitLabApiClient.Test
         {
             //arrange
             string title = Guid.NewGuid().ToString();
-            await _sut.CreateAsync(new CreateIssueRequest(TestProjectTextId, title));
+            await _sut.CreateAsync(TestProjectTextId, new CreateIssueRequest(title));
 
             //act
-            var listedIssues = await _sut.GetAsync(TestProjectTextId, o => o.Filter = title);
+            var listedIssues = await _sut.GetAllAsync(projectId: TestProjectTextId, options: o => o.Filter = title);
 
             //assert
             listedIssues.Single().Should().Match<Issue>(i =>
@@ -98,7 +95,7 @@ namespace GitLabApiClient.Test
             //arrange
             string title = Guid.NewGuid().ToString();
 
-            var issue = await _sut.CreateAsync(new CreateIssueRequest(TestProjectTextId, title)
+            var issue = await _sut.CreateAsync(TestProjectTextId, new CreateIssueRequest(title)
             {
                 Assignees = new List<int> { 1 },
                 Confidential = true,
@@ -108,8 +105,8 @@ namespace GitLabApiClient.Test
 
             //act
             var issueById = await _sut.GetAsync(TestProjectId, issue.Iid);
-            var issueByProjectId = (await _sut.GetAsync(o => o.IssueIds = new[] { issue.Iid })).FirstOrDefault(i => i.Title == title);
-            var ownedIssue = (await _sut.GetAsync(o => o.Scope = Scope.CreatedByMe)).FirstOrDefault(i => i.Title == title);
+            var issueByProjectId = (await _sut.GetAllAsync(options: o => o.IssueIds = new[] { issue.Iid })).FirstOrDefault(i => i.Title == title);
+            var ownedIssue = (await _sut.GetAllAsync(options: o => o.Scope = Scope.CreatedByMe)).FirstOrDefault(i => i.Title == title);
 
             //assert
             issue.Should().Match<Issue>(i =>
@@ -117,9 +114,9 @@ namespace GitLabApiClient.Test
                 i.Confidential && i.Title == title && i.Description == "Description" &&
                 i.Labels.SequenceEqual(new[] { "Label1" }));
 
-            issueById.ShouldBeEquivalentTo(issue, o => o.Excluding(s => s.UpdatedAt));
-            issueByProjectId.ShouldBeEquivalentTo(issue, o => o.Excluding(s => s.UpdatedAt));
-            ownedIssue.ShouldBeEquivalentTo(issue, o => o.Excluding(s => s.UpdatedAt));
+            issueById.Should().BeEquivalentTo(issue, o => o.Excluding(s => s.UpdatedAt));
+            issueByProjectId.Should().BeEquivalentTo(issue, o => o.Excluding(s => s.UpdatedAt));
+            ownedIssue.Should().BeEquivalentTo(issue, o => o.Excluding(s => s.UpdatedAt));
         }
 
         [Fact]
@@ -127,14 +124,15 @@ namespace GitLabApiClient.Test
         {
             //arrange
             string body = "comment1";
-            var issue = await _sut.CreateAsync(new CreateIssueRequest(TestProjectTextId, Guid.NewGuid().ToString())
+            var issue = await _sut.CreateAsync(TestProjectTextId, new CreateIssueRequest(Guid.NewGuid().ToString())
             {
                 Description = "Description"
             });
 
             //act
-            var note = await _sut.CreateNoteAsync(new CreateIssueNoteRequest(TestProjectTextId, issue.Iid, body)
+            var note = await _sut.CreateNoteAsync(TestProjectTextId, issue.Iid, new CreateIssueNoteRequest
             {
+                Body = body,
                 CreatedAt = DateTime.Now
             });
             var issueNotes = (await _sut.GetNotesAsync(TestProjectId, issue.Iid)).FirstOrDefault(i => i.Body == body);
@@ -144,26 +142,53 @@ namespace GitLabApiClient.Test
             note.Should().Match<Note>(n =>
                 n.Body == body);
 
-            issueNotes.ShouldBeEquivalentTo(note, o => o.Excluding(s => s.UpdatedAt));
-            issueNote.ShouldBeEquivalentTo(note, o => o.Excluding(s => s.UpdatedAt));
+            issueNotes.Should().BeEquivalentTo(note, o => o.Excluding(s => s.UpdatedAt));
+            issueNote.Should().BeEquivalentTo(note, o => o.Excluding(s => s.UpdatedAt));
         }
 
         [Fact]
         public async Task CreatedIssueNoteCanBeUpdated()
         {
             //arrange
-            var createdIssue = await _sut.CreateAsync(new CreateIssueRequest(TestProjectTextId, Guid.NewGuid().ToString())
+            var createdIssue = await _sut.CreateAsync(TestProjectTextId, new CreateIssueRequest(Guid.NewGuid().ToString())
             {
                 Description = "Description1"
             });
-            var createdIssueNote = await _sut.CreateNoteAsync(new CreateIssueNoteRequest(TestProjectTextId, createdIssue.Iid, "comment2"));
+            var createdIssueNote = await _sut.CreateNoteAsync(TestProjectTextId, createdIssue.Iid, new CreateIssueNoteRequest("comment2"));
 
             //act
-            var updatedIssueNote = await _sut.UpdateNoteAsync(new UpdateIssueNoteRequest(TestProjectTextId, createdIssue.Iid, createdIssueNote.Id, "comment22"));
+            var updatedIssueNote = await _sut.UpdateNoteAsync(TestProjectTextId, createdIssue.Iid, createdIssueNote.Id, new UpdateIssueNoteRequest("comment22"));
 
             //assert
             updatedIssueNote.Should().Match<Note>(n =>
                 n.Body == "comment22");
+        }
+
+        [Fact]
+        public async Task CreateIssueWithTasks()
+        {
+            //arrange
+            string title = Guid.NewGuid().ToString();
+            await _sut.CreateAsync(TestProjectTextId, new CreateIssueRequest(title)
+            {
+                Description = @"Description1
+- [ ] Task 1
+- [ ] Task 2
+- [x] Task 3
+"
+            });
+
+            //act
+            var listedIssues = await _sut.GetAllAsync(projectId: TestProjectTextId, options: o => o.Filter = title);
+
+            //assert
+            listedIssues.Single().Should().Match<Issue>(i =>
+                i.ProjectId == TestProjectTextId &&
+                i.Title == title &&
+                i.TaskCompletionStatus != null &&
+                i.TaskCompletionStatus.Count == 3 &&
+                i.TaskCompletionStatus.Completed == 1 &&
+                i.TimeStats != null);
         }
     }
 }

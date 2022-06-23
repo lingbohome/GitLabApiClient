@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -59,14 +59,14 @@ namespace GitLabApiClient.Test.Inspections
 
         private static IEnumerable<Type> GetRequestClasses()
         {
-            var _ignoreClasses = new List<string>
+            var ignoreClasses = new List<string>
             {
                 "MergeRequest"
             };
 
             return typeof(CreateIssueRequest).Assembly.GetExportedTypes().
                 Where(t => t.Name.EndsWith("Request", StringComparison.OrdinalIgnoreCase)).
-                Where(t => !_ignoreClasses.Contains(t.Name)).
+                Where(t => !ignoreClasses.Contains(t.Name)).
                 Where(t => t.IsClass);
         }
     }

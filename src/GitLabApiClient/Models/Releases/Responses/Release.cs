@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System;
 using GitLabApiClient.Models.Milestones.Responses;
 using Newtonsoft.Json;
 
@@ -8,9 +6,6 @@ namespace GitLabApiClient.Models.Releases.Responses
 {
     public class Release
     {
-        [JsonProperty("id")]
-        public string ProjectId { get; set; }
-
         [JsonProperty("tag_name")]
         public string TagName { get; set; }
 
